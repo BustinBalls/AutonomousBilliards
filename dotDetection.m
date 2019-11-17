@@ -113,34 +113,47 @@ maskedImage(repmat(~BW,[1 1 3])) = 0;
 %masked image to grey for edge detection
 grey=rgb2gray(maskedImage);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%NEED to find pixel Ratio determind on img size%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-[cDot, r, m] = imfindcircles(grey,[2 6],'Sensitivity', 0.9, 'EdgeThreshold', 0.5);
+[cDot, r] = imfindcircles(grey,[2 6],'Sensitivity', 0.9, 'EdgeThreshold', 0.5);
 %shows all circles detected
 viscircles(cDot, r,'Color','b');
 %shows circles used
 %viscircles(cSelect, rSelect,'Color','r','LineStyle','--');
 %used to create averages
-L=[];
-R=[];
-T=[];
-B=[];
+
+    L=[];
+    R=[];
+    T=[];
+    B=[];
 for i=1:length(cDot)
-    if cDot(i,2)<= 100
-        %top
-        T=[T,cDot(i,2)];
-        
+    if cDot(i,1) <= 100
+        %left side
+        L=[L,;cDot(i,1)];
+    elseif cDot(i,1) >= 1200
+        %Right side
+        R=[R,;cDot(i,1)];
+    else
+        if cDot(i,2)<= 100
+            %top
+            T=[T,cDot(i,2)];
+        elseif cDot(i,2)>= 600
+            %Bottom
+            B=[B,cDot(i,2)];
+        end
     end
 end
-    %%
-    %Finds the max x and y cordinates for the top Row
-    x=[cDot(find(cDot(:,2)==min(T),5),1),cDot(find(cDot(:,2)==max(T),5),1)];
-    y=[cDot(find(cDot(:,2)==min(T),5),2),cDot(find(cDot(:,2)==max(T),5),2)];
+%%
+%Finds the max x and y cordinates for the top Row
+
+if max(T)-mean(T)>7
+    xT=[cDot(find(cDot(:,2)==min(T),5),1),cDot(find(cDot(:,2)==max(T),5),1)];
+    yT=[cDot(find(cDot(:,2)==min(T),5),2),cDot(find(cDot(:,2)==max(T),5),2)];
     %Finds the slope of the top line and takes the arctan to find angle
-    RotTable=atand((x(2)-x(1))/(y(2)-y(1)));
-    RotTable=90-RotTable;
+    %RotTable=atand((xT(2)-xT(1))/(yT(2)-yT(1)));
+    %RotTable=abs(90-abs(RotTable));
     %Rotates the grey image so you dont have to apply mask again
-    grey=imrotate(grey,RotTable);
-    imshow(imrotate(grey,RotTable));
-    img=imrotate(img,RotTable);
+    %grey=imrotate(grey,RotTable);
+    %imshow(imrotate(grey,RotTable));
+    %img=imrotate(img,RotTable);
     [cDot] = imfindcircles(grey,[2 6],'Sensitivity', 0.9, 'EdgeThreshold', 0.5);
     L=[];
     R=[];
@@ -158,7 +171,12 @@ end
                 try
                     cSelect = cDot(1:15,:);
                 catch
-                    cSelect = cDot(1:14,:);
+                    try
+                        cSelect = cDot(1:14,:);
+                    catch
+                        cSelect = cDot(1:13,:);
+                    end
+                    
                 end
             end
         end
@@ -180,6 +198,8 @@ end
             end
         end
     end
+end
+
     TopLine=sum(T)/length(T);
     BottomLine=sum(B)/length(B);
     RightLine=sum(R)/length(R);

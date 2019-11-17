@@ -1,8 +1,9 @@
+%function [strXYZOATS]=MatlabMain() 
 clear all
 clc
 
 %globals to other Directories
-global ball_d bumper_w mm2pixel pixel2mm ballInfo  Directory2Zip img color
+global ball_d bumper_w mm2pixel pixel2mm ballInfo  Directory2Zip img color rasp cam cueCrop
 %globals from other directories
 global pocket color X Y Z O A Ts balls cameraParams RotTable CroppedTable
 
@@ -19,5 +20,7 @@ bumper_w=68*mm2pixel;
 [T,B,R,L]=dotDetection(img);
 %Draws rectangle with respect to dot calbration GOLDEN COLOR
 DrawTableFeatures(L,R,T,B);
-PossibleShots(img);
-disp('Right now it displays as 1X6 cell array... to view how its supposed to look click on variable and it will display correctly.');
+[x,y,z,o,a,t]=PossibleShots(img);
+
+strXYZOATS=[num2str(x) ' ' num2str(y) ' ' num2str(z) ' ' num2str(o) ' ' num2str(a) ' ' num2str(t)];
+%end

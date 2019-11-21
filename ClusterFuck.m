@@ -1,10 +1,10 @@
-%function [robotSend]=ClusterFuck()
+function [robotSend]=ClusterFuck()
 clear all
 clc
 close all
 %%
 %intialize  Variables
-global Shots img ballDiam pocket color ballRad xCrop yCrop
+global Shots img ballDiam pocket color ballRad xCrop yCrop ballScrewBack arduinoUno
 Directory2Zip='C://Users/ryanl/Downloads/Senior_Project_kyle/Senior_Project/MatlabBilliards';%directory to this  Zip
 mm2pixel=1/1.4992;
 pixel2mm=1.4992;
@@ -13,6 +13,25 @@ bumper_w=68*mm2pixel;
 ballRad = ballDiam/2;
 %color matrix
 color = {[0 0 0];[1 0 0];[0.4660 0.6740 0.1880];[0 0 1];[0.8500 0.3250 0.0980];[1 0 1]};
+
+try
+    arduinoUno=arduino('COM8','uno');
+catch
+    try
+        arduinoUno=arduino('COM6','uno');
+    catch
+        try
+            arduinoUno=arduino('COM7','uno');
+        catch
+            try
+                arduinoUno=arduino('COM5','uno');
+            catch
+                arduinoUno=arduino('COM4','uno');
+            end
+        end
+    end
+end
+
 %%
 %getImage()
 %Tries to get image from raspi if fails will catch by asking for image name
@@ -22,15 +41,16 @@ try
     cam = cameraboard(rasp,'Resolution','1280x720','Quality',100,...
         'Brightness',55,'Contrast', 0,'Saturation',0,'Sharpness',0);
     img = snapshot(cam);%capture image
-    imgSave=input('Save Image? (y/n): ','s');
-    if imgSave== 'y'
-        rando=sum(sum(rand(3)));
-        imwrite(img,[Directory2Zip '/Photos/img(' num2str(rando) ').png'])
-    end
+    %imgSave=input('Save Image? (y/n): ','s');
+    %if imgSave== 'y'
+    %    rando=sum(sum(rand(3)));
+    %    imwrite(img,[Directory2Zip '/Photos/img(' num2str(rando) ').png'])
+    %end
 catch
-    restOfString=input('Enter photo extension after <Directory2Zip>/Photos/','s');
-    %path2Photo=[Directory2Zip '/Photos/' 'img(4.4484).png']; %Short cut for debugging
-    path2Photo=[Directory2Zip '/Photos/' restOfString];
+    
+    %restOfString=input('Enter photo extension after <Directory2Zip>/Photos/','s');
+    path2Photo=[Directory2Zip '/Photos/' 'img(5.2737).png']; %Short cut for debugging
+    %path2Photo=[Directory2Zip '/Photos/' restOfString];
     img = imread(path2Photo);
 end
 %will try to undistort photo using cameraParams, if no cameraParams in
@@ -217,13 +237,22 @@ end
 %level out table before crop occurs
 %%%%want to apply a form of std deviation to get more accurate roation
 tDotDeviation=max(T)-mean(T);
-while tDotDeviation>7
+disp(['tmax-tmean: ' num2str(tDotDeviation)]);
+
+
+%{
+while tDotDeviation>20 
     xT=[cDot(find(cDot(:,2)==min(T),5),1),cDot(find(cDot(:,2)==max(T),5),1)];
     yT=[cDot(find(cDot(:,2)==min(T),5),2),cDot(find(cDot(:,2)==max(T),5),2)];
     %Finds the slope of T and takes the arctan to find angle
     RotTable=atand((xT(2)-xT(1))/(yT(2)-yT(1)));
-    RotTable=90-RotTable;
-    %Rotates the grey image so you dont have to apply mask again
+    if RotTable>0
+        RotTable=90-RotTable;
+        %Rotates the grey image so you dont have to apply mask again
+    else
+        RotTable=RotTable+90;
+    end
+    
     grey=imrotate(grey,RotTable);
     imshow(imrotate(grey,RotTable));
     img=imrotate(img,RotTable);
@@ -290,6 +319,7 @@ for i=1:length(cDot)
 end
 tDotDeviation=max(T)-mean(T);
 end
+%}
 %averages the values which will define the perimeter of the crop
 T=sum(T)/length(T);
 B=sum(B)/length(B);
@@ -603,18 +633,18 @@ while isempty(cBall)==0
                 O=round(tr2eul(U)*(180/pi),2);
                 O=O(3);
                 %will eliminate joint lock
-                if O<90 && O>0
+                %if O<90 && O>0
                     %it actually accomplished nothing
-                    A=-(A);
-                    Ts=-(Ts);
-                    aa=[1 0 0]';bb=[Ball{i,10}(j) Ball{i,11}(j) 0]';
-                    U = UU(FFi(aa,bb), GG(aa,bb));
-                    O=round(tr2eul(U)*(180/pi),2);
-                    O=O(3);
-                else
-                    A=abs(A);
-                    Ts=abs(Ts);
-                end
+                %    A=-(A);
+                %    Ts=-(Ts);
+                %    aa=[1 0 0]';bb=[Ball{i,10}(j) Ball{i,11}(j) 0]';
+                %    U = UU(FFi(aa,bb), GG(aa,bb));
+                %    O=round(tr2eul(U)*(180/pi),2);
+                %    O=O(3);
+                %else
+                A=abs(A);
+                Ts=abs(Ts);
+                
                 disp([num2str(X) ' ' num2str(Y) ' ' num2str(Z) ' ' num2str(O) ' ' num2str(A) ' ' num2str(Ts)])
                 Shots{count,1}=[num2str(X) ' ' num2str(Y) ' ' num2str(Z) ' ' num2str(O) ' ' num2str(A) ' ' num2str(Ts)];
                 %%
@@ -674,18 +704,19 @@ Ball.Properties.VariableNames={'Num','X','Y','TargetBall2Pocket_mag','TargetBall
 %onto ranking the fucking things and drawing
 rankedShots=sort(Shots.Rank(:));
 %Display them all
-for i=1:length(rankedShots)
+%for i=1:length(rankedShots)
     %analyze Rank and displays shot easiest==>hardest
     %Commented out for auto send
-    DrawShot(find(Shots.Rank(:)==rankedShots(i)));
+%    DrawShot(find(Shots.Rank(:)==rankedShots(i)));
     %robotSend=input('Send errrr? (y/n): ','s');
     
-end
+%end
 %comment in for 
-%DrawShot(find(Shots.Rank(:)==rankedShots(1)));
-%robotSend=Shots.XYZOATs{i};
-
-%end%this ends function
+robotSend=DrawShot(find(Shots.Rank(:)==rankedShots(1)));
+%robotSend=Shots.XYZOATs{1};
+ballScrewBack=150;
+clear rasp arduinoUno cam
+end%this ends function
 
 
 %%
@@ -900,7 +931,7 @@ center_x=cSelect(1);
 center_y=cSelect(2);
 end
 %Function that handles all drawings of shots
-function DrawShot(shotNum)
+function [robotNextShot]=DrawShot(shotNum)
 global Shots img ballDiam pocket color ballRad xCrop yCrop
 
 %Top line for ball offset
@@ -951,4 +982,5 @@ viscircles(Shots.Draw2_1(shotNum,:) , ballDiam/2, 'Color', Shots.Color(shotNum,:
 line(Shots.Draw3_1(shotNum,:), Shots.Draw3_2(shotNum,:),'Color', Shots.Color(shotNum,:),'LineWidth',2); 
 %draws line from ghostball[x,y] to TargetBall Center[x,y]
 line(Shots.Draw4_1(shotNum,:),Shots.Draw4_2(shotNum,:),'Color',Shots.Color(shotNum,:),'LineWidth',2); 
+robotNextShot=Shots.XYZOATs{shotNum,:};
 end
